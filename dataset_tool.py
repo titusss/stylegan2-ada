@@ -697,8 +697,9 @@ def create_from_images(tfrecord_dir, image_dir, shuffle):
         error('No input images found')
 
     # img = np.asarray(PIL.Image.open(image_filenames[0]))
-    img = np.asarray(tifffile.imread(image_filenames[0]))
-    
+    img_all_channel = np.asarray(tifffile.imread(image_filenames[0]))
+    img = img_all_channel[:,:,:3]
+
     resolution = img.shape[0]
     channels = img.shape[2] if img.ndim == 3 else 1
     print("channels: ", channels)
@@ -715,7 +716,8 @@ def create_from_images(tfrecord_dir, image_dir, shuffle):
         for idx in range(order.size):
             
             # img = np.asarray(PIL.Image.open(image_filenames[order[idx]]))
-            img = np.asarray(tifffile.imread(image_filenames[order[idx]]))
+            img_all_channels = np.asarray(tifffile.imread(image_filenames[order[idx]]))
+            img = img_all_channel[:,:,:3]
             
             if channels == 1:
                 img = img[np.newaxis, :, :] # HW => CHW
