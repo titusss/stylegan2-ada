@@ -20,6 +20,7 @@ import scipy
 import numpy as np
 from numpy import linalg
 import PIL.Image
+import tifffile
 
 import dnnlib
 import dnnlib.tflib as tflib
@@ -74,7 +75,8 @@ def generate_images(network_pkl, seeds, truncation_psi, outdir, class_idx=None, 
 
     # Rendering format
     optimized = bool(jpg_quality)
-    image_format = 'jpg' if jpg_quality else 'png'
+    # image_format = 'jpg' if jpg_quality else 'png'
+    image_format = 'tif'
     jpg_quality = int(np.clip(jpg_quality, 1, 95)) # 'quality' keyword option ignored for PNG encoding
 
     # Render images for a given dlatent vector.
@@ -91,7 +93,9 @@ def generate_images(network_pkl, seeds, truncation_psi, outdir, class_idx=None, 
         for i, img in enumerate(imgs):
             fname = f'{outdir}/dlatent{i:02d}.{image_format}'
             print (f'Saved {fname}')
-            PIL.Image.fromarray(img, 'RGB').save(fname, optimize=optimized, quality=jpg_quality)
+            # PIL.Image.fromarray(img, 'RGB').save(fname, optimize=optimized, quality=jpg_quality)
+            # PIL.Image.fromarray(img, 'RGB').save(fname)
+            tifffile.imsave(fname, img, photometric='rgb')
         return
 
     # Render images for dlatents initialized from random seeds.
@@ -119,7 +123,8 @@ def generate_images(network_pkl, seeds, truncation_psi, outdir, class_idx=None, 
             tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
         image = Gs.run(z, label, **Gs_kwargs) # [minibatch, height, width, channel]
         images.append(image[0])
-        PIL.Image.fromarray(image[0], 'RGB').save(f'{outdir}/seed{seed:04d}.{image_format}', optimize=optimized, quality=jpg_quality)
+        # PIL.Image.fromarray(image[0], 'RGB').save(f'{outdir}/seed{seed:04d}.{image_format}', optimize=optimized, quality=jpg_quality)
+        tifffile.imsave(f'{outdir}/seed{seed:04d}.{image_format}', image[0], photometric='rgb')
         if(save_vector):
             np.save(f'{outdir}/vectors/seed{seed:04d}',z)
             # np.savetxt(f'{outdir}/vectors/seed{seed:04d}',z)
@@ -128,7 +133,7 @@ def generate_images(network_pkl, seeds, truncation_psi, outdir, class_idx=None, 
     if grid:
         print('Generating image grid...')
         PIL.Image.fromarray(create_image_grid(np.array(images)), 'RGB').save(f'{outdir}/grid.{image_format}', optimize=optimized, quality=jpg_quality)
-
+        # tifffile.imsave(f'{outdir}/grid.{image_format}', create_image_grid(np.array(images)), 'RGB'), photometric='rgb') # The indiviual images of the grid might not be tiff and therefore just for demo purposes
 #----------------------------------------------------------------------------
 
 def truncation_traversal(network_pkl,npys,outdir,class_idx=None, seed=[0],start=-1.0,stop=1.0,increment=0.1,framerate=24):
@@ -162,7 +167,8 @@ def truncation_traversal(network_pkl,npys,outdir,class_idx=None, seed=[0],start=
         tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
         image = Gs.run(z, label, **Gs_kwargs) # [minibatch, height, width, channel]
         images.append(image[0])
-        PIL.Image.fromarray(image[0], 'RGB').save(f'{outdir}/frame{count:05d}.png')
+        # PIL.Image.fromarray(image[0], 'RGB').save(f'{outdir}/frame{count:05d}.png')
+        tifffile.imsave(f'{outdir}/frame{count:05d}.tif', image[0], photometric='rgb')
 
         trunc+=increment
         count+=1
@@ -318,7 +324,9 @@ def generate_latent_images(zs, truncation_psi, outdir, save_npy,prefix,vidname,f
         noise_rnd = np.random.RandomState(1) # fix noise
         tflib.set_vars({var: noise_rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
         images = Gs.run(z, label, **Gs_kwargs) # [minibatch, height, width, channel]
-        PIL.Image.fromarray(images[0], 'RGB').save(f'{outdir}/frames/{prefix}{z_idx:05d}.png')
+        # PIL.Image.fromarray(images[0], 'RGB').save(f'{outdir}/frames/{prefix}{z_idx:05d}.png')
+        tifffile.imsave(f'{outdir}/frames/{prefix}{z_idx:05d}.tif', images[0], photometric='rgb')
+
         if save_npy:
             np.save(f'{outdir}/vectors/{prefix}{z_idx:05d}.npz',z)
             # np.savetxt(f'{outdir}/vectors/{prefix}{z_idx:05d}.txt',z)
@@ -346,7 +354,8 @@ def generate_images_in_w_space(ws, truncation_psi,outdir,save_npy,prefix,vidname
         tflib.set_vars({var: noise_rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
         images = Gs.components.synthesis.run(w, **Gs_kwargs) # [minibatch, height, width, channel]
         # images = Gs.run(w,label, **Gs_kwargs) # [minibatch, height, width, channel]
-        PIL.Image.fromarray(images[0], 'RGB').save(f'{outdir}/frames/{prefix}{w_idx:05d}.png')
+        # PIL.Image.fromarray(images[0], 'RGB').save(f'{outdir}/frames/{prefix}{w_idx:05d}.png')
+        tifffile.imsave(f'{outdir}/frames/{prefix}{w_idx:05d}.tif', images[0], photometric='rgb')
         if save_npy:
             np.save(f'{outdir}/vectors/{prefix}{w_idx:05d}.npz',w)
             # np.savetxt(f'{outdir}/vectors/{prefix}{w_idx:05d}.txt',w.reshape(w.shape[0], -1))
@@ -497,7 +506,8 @@ def generate_neighbors(network_pkl, seeds, npys, diameter, truncation_psi, num_s
         tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
         images = Gs.run(og_z, None, **Gs_kwargs) # [minibatch, height, width, channel]
         # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('seed%04d.png' % seed))
-        PIL.Image.fromarray(images[0], 'RGB').save(f'{outdir}/seed{seed:05d}.png')
+        # PIL.Image.fromarray(images[0], 'RGB').save(f'{outdir}/seed{seed:05d}.png')
+        tifffile.imsave(f'{outdir}/seed{seed:05d}.tif', images[0], photometric='rgb')
 
         zs = []
         z_prefix = 'seed%04d_neighbor' % seed
@@ -508,7 +518,8 @@ def generate_neighbors(network_pkl, seeds, npys, diameter, truncation_psi, num_s
             new_z = np.clip(np.add(og_z,random),-1,1)
             images = Gs.run(new_z, None, **Gs_kwargs) # [minibatch, height, width, channel]
             # PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('%s%04d.png' % (z_prefix,s)))
-            PIL.Image.fromarray(images[0], 'RGB').save(f'{outdir}/{z_prefix}{s:05d}.png')
+            # PIL.Image.fromarray(images[0], 'RGB').save(f'{outdir}/{z_prefix}{s:05d}.png')
+            tifffile.imsave(f'{outdir}/{z_prefix}{s:05d}.tif', images[0], photometric='rgb')
             # generate_latent_images(zs, truncation_psi, save_vector, z_prefix)
             if save_vector:
                 np.save(dnnlib.make_run_dir_path('%s%05d.npy' % (z_prefix,s)), new_z)
